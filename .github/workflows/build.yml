@@ -51,7 +51,12 @@ jobs:
 
       - name: Build and Archive
         run: |
-          xcodebuild -project CellularOptimizerMax.xcodeproj -scheme CellularOptimizerMax -sdk iphoneos -configuration Release archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          set -o pipefail
+          xcodebuild -project CellularOptimizerMax.xcodeproj -scheme CellularOptimizerMax -sdk iphoneos -configuration Release archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcode_build.log || {
+            echo "=== BUILD FAILED, SHOWING LOG TAIL ==="
+            tail -n 100 xcode_build.log
+            exit 1
+          }
           
       - name: Export IPA
         run: |
