@@ -72,12 +72,38 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
+      - name: Auto-Fix Swift Compilation Errors
+        run: |
+          python3 -c '
+          import re
+
+          # 1. إصلاح مشكلة ProbeEngine.swift (.values.last)
+          probe_path = "AppProject/Sources/ProbeEngine.swift"
+          with open(probe_path, "r", encoding="utf-8") as f:
+              content = f.read()
+          # تحويل الـ values إلى Array لتمكين استخدام .last
+          new_content = re.sub(r"([a-zA-Z0-9_\.]+)\.values\.last", r"Array(\1.values).last", content)
+          with open(probe_path, "w", encoding="utf-8") as f:
+              f.write(new_content)
+          print("تم إصلاح ProbeEngine.swift بنجاح")
+
+          # 2. إصلاح مشكلة DNSController.swift (الوسيط الزائد serverURL)
+          dns_path = "AppProject/Sources/DNSController.swift"
+          with open(dns_path, "r", encoding="utf-8") as f:
+              lines = f.readlines()
+          if len(lines) >= 42:
+              # إزالة الوسيط الزائد serverURL من السطر 42
+              lines[41] = re.sub(r",?\s*serverURL:\s*[^,\)]+", "", lines[41])
+          with open(dns_path, "w", encoding="utf-8") as f:
+              f.writelines(lines)
+          print("تم إصلاح DNSController.swift بنجاح")
+          '
+
       - name: Generate Project and Compile
         run: |
           cd AppProject
           xcodegen generate
           
-          # تشغيل البناء مع طباعة أخطاء المترجم حصرياً
           set -o pipefail
           xcodebuild -project CellularOptimizerMax.xcodeproj \
             -scheme CellularOptimizerMax \
@@ -88,7 +114,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO > build_log.txt 2>&1 || {
-              echo "=== تفاصيل خطأ المترجم (Swift Compiler Errors) ==="
+              echo "=== تفاصيل خطأ المترجم الجديد ==="
               grep -i "error:" build_log.txt || tail -n 50 build_log.txt
               exit 74
             }
