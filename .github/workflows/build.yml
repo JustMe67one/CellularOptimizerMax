@@ -16,7 +16,6 @@ jobs:
       - name: Setup Xcode Environment
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          # تم تغيير الإصدار إلى أحدث نسخة ليتوافق مع ملف المشروع الجديد
           xcode-version: 'latest'
 
       - name: Install Project Generator
@@ -78,7 +77,7 @@ jobs:
           cd AppProject
           xcodegen generate
           
-          # البناء ومراقبة أي خطأ محتمل
+          # تشغيل البناء مع طباعة أخطاء المترجم حصرياً
           set -o pipefail
           xcodebuild -project CellularOptimizerMax.xcodeproj \
             -scheme CellularOptimizerMax \
@@ -88,7 +87,11 @@ jobs:
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO > build_log.txt 2>&1 || (echo "=== خطأ في التجميع ===" && cat build_log.txt && exit 74)
+            CODE_SIGNING_ALLOWED=NO > build_log.txt 2>&1 || {
+              echo "=== تفاصيل خطأ المترجم (Swift Compiler Errors) ==="
+              grep -i "error:" build_log.txt || tail -n 50 build_log.txt
+              exit 74
+            }
 
       - name: Package to IPA
         run: |
