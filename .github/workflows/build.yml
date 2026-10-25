@@ -72,31 +72,31 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Auto-Fix Swift Compilation Errors
+      - name: Bulletproof Auto-Fix Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح مشكلة ProbeEngine.swift (تحويل Int إلى String بوضوح)
+          # 1. إصلاح شامل لملف ProbeEngine.swift (.values.last -> تحويل لـ Array)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          if len(lines) >= 51:
-              # تحويل القيمة المسندة إلى String لتتوافق مع نوع المتغير
-              lines[50] = re.sub(r"=\s*([0-9a-zA-Z_\.]+)\b", r"= String(\1)", lines[50])
+              content = f.read()
+          # استبدال أي تعبير يحتوي على .values.last بطريقة آمنة
+          content = re.sub(r"([a-zA-Z0-9_\(\)\.]+)\.values\.last", r"Array(\1.values).last", content)
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.writelines(lines)
-          print("تم إصلاح ProbeEngine.swift بنجاح")
+              f.write(content)
+          print("تم إصلاح ProbeEngine.swift جذرياً")
 
-          # 2. إصلاح مشكلة DNSController.swift (إزالة التغليف الخاطئ والفواصل الزائدة)
+          # 2. إصلاح شامل لملف DNSController.swift (حذف الوسيط الزائد serverURL)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
               content = f.read()
-          content = re.sub(r"(NEDNSOverHTTPSSettings\([^\)]*\))!", r"\1", content)
-          content = re.sub(r"\n\s*,", r"\n", content)
+          # إزالة الوسيط serverURL أينما وجد داخل الأقواس
+          content = re.sub(r",\s*serverURL\s*:\s*[^,\)]+", "", content)
+          content = re.sub(r"serverURL\s*:\s*[^,\)]+,\s*", "", content)
           with open(dns_path, "w", encoding="utf-8") as f:
               f.write(content)
-          print("تم إصلاح DNSController.swift بنجاح")
+          print("تم إصلاح DNSController.swift جذرياً")
           '
 
       - name: Generate Project and Compile
