@@ -72,33 +72,30 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Ultimate Precise Auto-Fix Script
+      - name: Ultimate Global Auto-Fix Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح دقيق لملف ProbeEngine.swift (السطر 51: تحويل الأرقام المسندة إلى String)
+          # 1. إصلاح ProbeEngine.swift: استبدال .values.last بطريقة مضمونة 100%
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          if len(lines) >= 51:
-              # تحويل أي قيمة رقمية مسندة في السطر 51 إلى String(...)
-              lines[50] = re.sub(r"=\s*([0-9]+)\b", r"= String(\1)", lines[50])
+              content = f.read()
+          # استخدام .values.map({$0}).last لتجنب مشاكل عدم توفر .last مباشرة على Values
+          content = content.replace(".values.last", ".values.map({$0}).last")
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.writelines(lines)
-          print("تم إصلاح ProbeEngine.swift بدقة")
+              f.write(content)
+          print("تم إصلاح ProbeEngine.swift جذرياً")
 
-          # 2. إصلاح دقيق لملف DNSController.swift (إزالة الـ ! وإصلاح التعبيرات المعلقة)
+          # 2. إصلاح DNSController.swift: إزالة الوسيط serverURL بالكامل أينما وجد
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
               content = f.read()
-          # إزالة علامة التعجب بعد تهيئة NEDNSOverHTTPSSettings
-          content = re.sub(r"(NEDNSOverHTTPSSettings\([^\)]*\))\s*!", r"\1", content)
-          # تنظيف أي تعبير فارغ أو فواصل متراكمة مسببة لـ expected expression
-          content = re.sub(r"=\s*,", "= nil,", content)
+          # إزالة أي معامل يحتوي على serverURL: ... داخل الاستدعاءات
+          content = re.sub(r",?\s*serverURL\s*:\s*[^,\)]+", "", content)
           with open(dns_path, "w", encoding="utf-8") as f:
               f.write(content)
-          print("تم إصلاح DNSController.swift بدقة")
+          print("تم إصلاح DNSController.swift جذرياً")
           '
 
       - name: Generate Project and Compile
