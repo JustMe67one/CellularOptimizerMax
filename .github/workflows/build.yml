@@ -24,17 +24,16 @@ jobs:
       - name: Gather and Organize Swift Files
         run: |
           mkdir -p AppProject/Sources
-          # البحث عن جميع ملفات السويفت في المستودع ونسخها لمجلد العمل الرئيسي
           find . -name "*.swift" -not -path "*/.*" -exec cp {} AppProject/Sources/ \;
           echo "تم العثور على ملفات السويفت التالية:"
           ls -la AppProject/Sources
 
-          # إنشاء ملف Info.plist
+          # تم تصحيح الخطأ هنا (إضافة القوس الصحيح لـ dict)
           cat << 'EOF' > AppProject/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
-          dict>
+          <dict>
             <key>CFBundleExecutable</key>
             <string>CellularOptimizerMax</string>
             <key>CFBundleIdentifier</key>
@@ -53,7 +52,6 @@ jobs:
           </plist>
           EOF
 
-          # إعداد ملف project.yml
           cat << 'EOF' > AppProject/project.yml
           name: CellularOptimizerMax
           options:
