@@ -1,0 +1,36 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+
+      - name: Build and Archive
+        run: |
+          cd CellularOptimizerMax
+          xcodebuild -scheme CellularOptimizerMax -sdk iphoneos -configuration Release clean archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          
+      - name: Export IPA
+        run: |
+          cd CellularOptimizerMax
+          mkdir -p Payload
+          cp -r build/CellularOptimizerMax.xcarchive/Products/Applications/*.app Payload/
+          zip -r CellularOptimizerMax.ipa Payload/
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CellularOptimizerMax-IPA
+          path: CellularOptimizerMax/CellularOptimizerMax.ipa
