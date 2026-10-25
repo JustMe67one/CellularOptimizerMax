@@ -17,14 +17,39 @@ jobs:
         with:
           xcode-version: latest
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Create project.yml
+        run: |
+          cat << 'EOF' > project.yml
+          name: CellularOptimizerMax
+          options:
+            bundleIdPrefix: com.optimizer
+          targets:
+            CellularOptimizerMax:
+              type: application
+              platform: iOS
+              deploymentTarget: "16.0"
+              sources:
+                - path: CellularOptimizerMax/Sources
+              settings:
+                INFOPLIST_PLIST_DICT:
+                  UILaunchScreen: {}
+                  CFBundleIdentifier: "com.optimizer.CellularOptimizerMax"
+                  CFBundleShortVersionString: "1.0"
+                  CFBundleVersion: "1"
+          EOF
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
       - name: Build and Archive
         run: |
-          cd CellularOptimizerMax
-          xcodebuild -scheme CellularOptimizerMax -sdk iphoneos -configuration Release clean archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          xcodebuild -project CellularOptimizerMax.xcodeproj -scheme CellularOptimizerMax -sdk iphoneos -configuration Release clean archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           
       - name: Export IPA
         run: |
-          cd CellularOptimizerMax
           mkdir -p Payload
           cp -r build/CellularOptimizerMax.xcarchive/Products/Applications/*.app Payload/
           zip -r CellularOptimizerMax.ipa Payload/
@@ -33,4 +58,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CellularOptimizerMax-IPA
-          path: CellularOptimizerMax/CellularOptimizerMax.ipa
+          path: CellularOptimizerMax.ipa
