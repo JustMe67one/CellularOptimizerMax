@@ -72,30 +72,42 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Ultimate Global Auto-Fix Script
+      - name: Precise Target Auto-Fix Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح ProbeEngine.swift: استبدال .values.last بطريقة مضمونة 100%
+          # 1. إصلاح ProbeEngine.swift (السطر 51: تحويل القيمة المسندة إلى String بأمان)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              content = f.read()
-          # استخدام .values.map({$0}).last لتجنب مشاكل عدم توفر .last مباشرة على Values
-          content = content.replace(".values.last", ".values.map({$0}).last")
+              lines = f.readlines()
+          if len(lines) >= 51:
+              line = lines[50]
+              if "=" in line and "String(" not in line:
+                  parts = line.split("=", 1)
+                  lhs = parts[0]
+                  rhs = parts[1].strip()
+                  if rhs.endswith(";"):
+                      rhs = rhs[:-1].strip()
+                      semi = ";"
+                  else:
+                      semi = ""
+                  lines[50] = f"{lhs} = String({rhs}){semi}\n"
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.write(content)
-          print("تم إصلاح ProbeEngine.swift جذرياً")
+              f.writelines(lines)
+          print("تم إصلاح ProbeEngine.swift بنجاح")
 
-          # 2. إصلاح DNSController.swift: إزالة الوسيط serverURL بالكامل أينما وجد
+          # 2. إصلاح DNSController.swift (إزالة علامة التعجب الخاطئة وتصحيح الصياغة)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
               content = f.read()
-          # إزالة أي معامل يحتوي على serverURL: ... داخل الاستدعاءات
-          content = re.sub(r",?\s*serverURL\s*:\s*[^,\)]+", "", content)
+          # إزالة الـ ! بعد NEDNSOverHTTPSSettings
+          content = re.sub(r"NEDNSOverHTTPSSettings\s*\((.*?)\)\s*!", r"NEDNSOverHTTPSSettings(\1)", content, flags=re.DOTALL)
+          # تنظيف الفواصل المعلقة
+          content = re.sub(r",\s*\)", ")", content)
           with open(dns_path, "w", encoding="utf-8") as f:
               f.write(content)
-          print("تم إصلاح DNSController.swift جذرياً")
+          print("تم إصلاح DNSController.swift بنجاح")
           '
 
       - name: Generate Project and Compile
