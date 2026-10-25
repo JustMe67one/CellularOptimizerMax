@@ -1,73 +1,99 @@
-name: Build iOS App
+name: Build Custom Network App
 
 on:
   push:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build iOS IPA
-    runs-on: macos-latest
+  build-ipa:
+    name: Build & Package IPA
+    runs-on: macos-14
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Xcode
+      - name: Setup Xcode Environment
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest
+          xcode-version: '15.4'
 
-      - name: Install XcodeGen
+      - name: Install Project Generator
         run: brew install xcodegen
 
-      - name: Create project.yml
+      - name: Generate Core Manifests & Structure
         run: |
-          cat << 'EOF' > CellularOptimizerMax/project.yml
+          mkdir -p CellularOptimizerMax/Sources
+          
+          # إنشاء ملف Info.plist الضروري للشبكات
+          cat << 'EOF' > CellularOptimizerMax/Info.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>CellularOptimizerMax</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.custom.cellularoptimizer</string>
+            <key>CFBundleName</key>
+            <string>CellularOptimizerMax</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>LSRequiresIPhoneOS</key>
+            <true/>
+            <key>UILaunchScreen</key>
+            <dict/>
+          </dict>
+          </plist>
+          EOF
+
+          # إنشاء هيكل مشروع XcodeGen المكتمل
+          cat << 'EOF' > project.yml
           name: CellularOptimizerMax
           options:
-            bundleIdPrefix: com.optimizer
+            bundleIdPrefix: com.custom
+            deploymentTarget:
+              iOS: "16.0"
           targets:
             CellularOptimizerMax:
               type: application
               platform: iOS
-              deploymentTarget: "16.0"
               sources:
-                - Sources
-              frameworks:
-                - NetworkExtension.framework
-                - Network.framework
+                - CellularOptimizerMax
               settings:
-                CODE_SIGN_STYLE: Manual
-                CODE_SIGN_IDENTITY: ""
-                CODE_SIGNING_REQUIRED: "NO"
-                CODE_SIGNING_ALLOWED: "NO"
-                INFOPLIST_PLIST_DICT:
-                  UILaunchScreen: {}
-                  CFBundleIdentifier: "com.optimizer.CellularOptimizerMax"
-                  CFBundleShortVersionString: "1.0"
-                  CFBundleVersion: "1"
-          schemes:
-            CellularOptimizerMax:
-              build:
-                targets:
-                  CellularOptimizerMax: all
+                base:
+                  INFOPLIST_FILE: CellularOptimizerMax/Info.plist
+                  PRODUCT_BUNDLE_IDENTIFIER: com.custom.cellularoptimizer
+                  CODE_SIGNING_ALLOWED: "NO"
+                  CODE_SIGNING_REQUIRED: "NO"
+                  CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Generate Project and Build
-        run: |
-          cd CellularOptimizerMax
+          # توليد ملف Xcode الرسمي
           xcodegen generate
-          xcodebuild -project CellularOptimizerMax.xcodeproj -scheme CellularOptimizerMax -sdk iphoneos -configuration Release build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 
-      - name: Export IPA
+      - name: Compile and Archive Project
         run: |
-          cd CellularOptimizerMax
-          mkdir -p Payload
-          find . -name "*.app" -maxdepth 4 -exec cp -r {} Payload/ \;
-          zip -r CellularOptimizerMax.ipa Payload/
+          xcodebuild -project CellularOptimizerMax.xcodeproj \
+            -scheme CellularOptimizerMax \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/CellularOptimizerMax.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload IPA Artifact
+      - name: Extract App and Create IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/CellularOptimizerMax.xcarchive/Products/Applications/CellularOptimizerMax.app Payload/
+          zip -r CellularOptimizerMax.ipa Payload
+
+      - name: Publish IPA File
         uses: actions/upload-artifact@v4
         with:
           name: CellularOptimizerMax-IPA
-          path: CellularOptimizerMax/CellularOptimizerMax.ipa
+          path: CellularOptimizerMax.ipa
