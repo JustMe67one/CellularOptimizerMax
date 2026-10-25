@@ -72,31 +72,33 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Bulletproof Auto-Fix Script
+      - name: Ultimate Precise Auto-Fix Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح شامل لملف ProbeEngine.swift (.values.last -> تحويل لـ Array)
+          # 1. إصلاح دقيق لملف ProbeEngine.swift (السطر 51: تحويل الأرقام المسندة إلى String)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              content = f.read()
-          # استبدال أي تعبير يحتوي على .values.last بطريقة آمنة
-          content = re.sub(r"([a-zA-Z0-9_\(\)\.]+)\.values\.last", r"Array(\1.values).last", content)
+              lines = f.readlines()
+          if len(lines) >= 51:
+              # تحويل أي قيمة رقمية مسندة في السطر 51 إلى String(...)
+              lines[50] = re.sub(r"=\s*([0-9]+)\b", r"= String(\1)", lines[50])
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.write(content)
-          print("تم إصلاح ProbeEngine.swift جذرياً")
+              f.writelines(lines)
+          print("تم إصلاح ProbeEngine.swift بدقة")
 
-          # 2. إصلاح شامل لملف DNSController.swift (حذف الوسيط الزائد serverURL)
+          # 2. إصلاح دقيق لملف DNSController.swift (إزالة الـ ! وإصلاح التعبيرات المعلقة)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
               content = f.read()
-          # إزالة الوسيط serverURL أينما وجد داخل الأقواس
-          content = re.sub(r",\s*serverURL\s*:\s*[^,\)]+", "", content)
-          content = re.sub(r"serverURL\s*:\s*[^,\)]+,\s*", "", content)
+          # إزالة علامة التعجب بعد تهيئة NEDNSOverHTTPSSettings
+          content = re.sub(r"(NEDNSOverHTTPSSettings\([^\)]*\))\s*!", r"\1", content)
+          # تنظيف أي تعبير فارغ أو فواصل متراكمة مسببة لـ expected expression
+          content = re.sub(r"=\s*,", "= nil,", content)
           with open(dns_path, "w", encoding="utf-8") as f:
               f.write(content)
-          print("تم إصلاح DNSController.swift جذرياً")
+          print("تم إصلاح DNSController.swift بدقة")
           '
 
       - name: Generate Project and Compile
