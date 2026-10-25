@@ -25,10 +25,9 @@ jobs:
         run: |
           mkdir -p AppProject/Sources
           find . -name "*.swift" -not -path "*/.*" -exec cp {} AppProject/Sources/ \;
-          echo "تم العثور على ملفات السويفت التالية:"
+          echo "=== ملفات السويفت المكتشفة ==="
           ls -la AppProject/Sources
 
-          # تم تصحيح الخطأ هنا (إضافة القوس الصحيح لـ dict)
           cat << 'EOF' > AppProject/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -73,10 +72,13 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Generate Project and Compile
+      - name: Generate Project and Compile with Error Capture
         run: |
           cd AppProject
           xcodegen generate
+          
+          # محاولة البناء مع تسجيل الأخطاء وطباعتها فوراً إذا فشل
+          set -o pipefail
           xcodebuild -project CellularOptimizerMax.xcodeproj \
             -scheme CellularOptimizerMax \
             -sdk iphoneos \
@@ -85,7 +87,7 @@ jobs:
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO > build_log.txt 2>&1 || (echo "=== خطأ في التجميع، هذه هي تفاصيل السجلات ===" && cat build_log.txt && exit 74)
 
       - name: Package to IPA
         run: |
