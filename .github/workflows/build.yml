@@ -39,6 +39,11 @@ jobs:
                   CFBundleIdentifier: "com.optimizer.CellularOptimizerMax"
                   CFBundleShortVersionString: "1.0"
                   CFBundleVersion: "1"
+          schemes:
+            CellularOptimizerMax:
+              build:
+                targets:
+                  CellularOptimizerMax: all
           EOF
 
       - name: Generate Xcode Project
@@ -46,7 +51,7 @@ jobs:
 
       - name: Build and Archive
         run: |
-          xcodebuild -project CellularOptimizerMax.xcodeproj -scheme CellularOptimizerMax -sdk iphoneos -configuration Release clean archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          xcodebuild -project CellularOptimizerMax.xcodeproj -scheme CellularOptimizerMax -sdk iphoneos -configuration Release archive -archivePath build/CellularOptimizerMax.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           
       - name: Export IPA
         run: |
