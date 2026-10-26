@@ -75,7 +75,6 @@ jobs:
           python3 -c '
           import glob
 
-          # 1. إعادة كتابة DNSController.swift بكود نظيف 100% وخالي من الأخطاء
           dns_code = """import Foundation
           import NetworkExtension
 
@@ -139,9 +138,7 @@ jobs:
           for path in glob.glob("**/DNSController.swift", recursive=True):
               with open(path, "w", encoding="utf-8") as f:
                   f.write(dns_code)
-              print(f"Cleaned and overwritten {path}")
 
-          # 2. إصلاح ProbeEngine.swift
           for path in glob.glob("**/ProbeEngine.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
@@ -154,6 +151,7 @@ jobs:
         run: |
           cd AppProject
           xcodegen generate
+          
           set -o pipefail
           xcodebuild -project CellularOptimizerMax.xcodeproj \
             -scheme CellularOptimizerMax \
@@ -163,7 +161,11 @@ jobs:
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO > build_log.txt 2>&1 || {
+              echo "=== تفاصيل الخطأ الحقيقي بدقة ==="
+              grep -C 3 -i "error:" build_log.txt || tail -n 80 build_log.txt
+              exit 65
+            }
 
       - name: Package to IPA
         run: |
