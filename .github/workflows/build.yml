@@ -72,32 +72,40 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Ultimate Glob-Based Patching Script
+      - name: Ultimate Clean Comma & Argument Patcher
         run: |
           python3 -c '
           import glob, re
 
-          # 1. إصلاح شامل لملف DNSController.swift (تعليق أي سطر يحتوي على serverURL أو isEnabled)
+          # 1. تنظيف DNSController.swift وإزالة serverURL وتنظيف الفواصل المعلقة بدقة
           for path in glob.glob("**/DNSController.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
-                  lines = f.readlines()
+                  content = f.read()
               
+              # إزالة وسيط serverURL بأمان من أي استدعاء
+              content = re.sub(r",\s*serverURL\s*:[^,\)]+", "", content)
+              content = re.sub(r"serverURL\s*:[^,\)]+\s*,?", "", content)
+              
+              # تعليق isEnabled لأنها للقراءة فقط
+              lines = content.splitlines()
               new_lines = []
               for l in lines:
-                  if ("serverURL" in l or "isEnabled" in l) and not l.strip().startswith("//"):
-                      new_lines.append("// " + l + " // Neutralized by patcher\n")
+                  if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
+                      new_lines.append("// " + l + " // Neutralized: isEnabled is get-only\n")
                   else:
                       new_lines.append(l)
-                      
-              content = "".join(new_lines)
+              content = "\n".join(new_lines)
+              
+              # تنظيف نهائي للفواصل المعلقة والمزدوجة
               content = re.sub(r",\s*\)", ")", content)
               content = re.sub(r"\(\s*,", "(", content)
+              content = re.sub(r",\s*,", ",", content)
               
               with open(path, "w", encoding="utf-8") as f:
                   f.write(content)
               print(f"Successfully sanitized {path}")
 
-          # 2. إصلاح شامل لملف ProbeEngine.swift
+          # 2. إصلاح ProbeEngine.swift
           for path in glob.glob("**/ProbeEngine.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
