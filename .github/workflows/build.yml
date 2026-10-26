@@ -72,49 +72,33 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Ultimate Robust Python Patching Script
+      - name: Surgical DNSController Fix Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح ProbeEngine.swift (السطر 51: تحويل أي قيمة مسندة إلى String بأمان)
-          probe_path = "AppProject/Sources/ProbeEngine.swift"
-          with open(probe_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          if len(lines) >= 51:
-              line = lines[50]
-              if "=" in line and "String(" not in line:
-                  parts = line.split("=", 1)
-                  lhs = parts[0]
-                  rhs = parts[1].strip().rstrip(";")
-                  lines[50] = f"{lhs} = String({rhs})\n"
-          
-          # إصلاح .values.last أيضاً إن وُجدت
-          content = "".join(lines)
-          content = content.replace(".values.last", ".values.map({$0}).last")
-          with open(probe_path, "w", encoding="utf-8") as f:
-              f.write(content)
-          print("تم إصلاح ProbeEngine.swift بنجاح")
-
-          # 2. إصلاح DNSController.swift (تنظيف الفواصل المعلقة وتعليق أي سطر تالف حول serverURL)
+          # إصلاح شامل لملف DNSController.swift
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
-              dns_lines = f.readlines()
+              lines = f.readlines()
           
-          cleaned_dns = []
-          for l in dns_lines:
-              if "serverURL" in l and not l.strip().startswith("//"):
-                  l = "// " + l + " // Commented out by patcher\n"
-              cleaned_dns.append(l)
+          new_lines = []
+          for l in lines:
+              # تعليق أي سطر يحاول إسناد قيمة لـ isEnabled (لأنها get-only)
+              if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
+                  l = "// " + l + " // Commented out: isEnabled is get-only\n"
+              new_lines.append(l)
               
-          dns_content = "".join(cleaned_dns)
-          dns_content = re.sub(r"\(\s*,", "(", dns_content)
-          dns_content = re.sub(r",\s*\)", ")", dns_content)
-          dns_content = re.sub(r",\s*,", ",", dns_content)
+          content = "".join(new_lines)
+          
+          # إزالة الفواصل المعلقة والزائدة التي تسبب خطأ unexpected comma
+          content = re.sub(r"\(\s*,", "(", content)
+          content = re.sub(r",\s*\)", ")", content)
+          content = re.sub(r",\s*,", ",", content)
           
           with open(dns_path, "w", encoding="utf-8") as f:
-              f.write(dns_content)
-          print("تم إصلاح DNSController.swift بنجاح")
+              f.write(content)
+          print("تم تنظيف وتصحيح DNSController.swift بنجاح")
           '
 
       - name: Generate Project and Compile
