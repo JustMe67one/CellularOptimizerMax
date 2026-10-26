@@ -72,38 +72,28 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Precise Index Auto-Fix Script
+      - name: Foolproof Python Patching Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح ProbeEngine.swift (السطر 51: تحويل القيمة المسندة إلى String)
+          # 1. إصلاح ProbeEngine.swift (.values.last -> تحويل آمن عبر map)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          if len(lines) >= 51:
-              line = lines[50]
-              if "=" in line and "String(" not in line:
-                  parts = line.split("=", 1)
-                  lhs = parts[0]
-                  rhs = parts[1].strip()
-                  semi = ";" if rhs.endswith(";") else ""
-                  rhs = rhs.rstrip(";")
-                  lines[50] = f"{lhs} = String({rhs}){semi}\n"
+              content = f.read()
+          content = re.sub(r"\.values\s*\.\s*last", ".values.map({$0}).last", content)
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.writelines(lines)
-          print("تم إصلاح ProbeEngine.swift بدقة الفهرس")
+              f.write(content)
+          print("تم إصلاح ProbeEngine.swift بنجاح تام")
 
-          # 2. إصلاح DNSController.swift (إزالة أي علامة تعجب بعد NEDNSOverHTTPSSettings)
+          # 2. إصلاح DNSController.swift (حذف الوسيط serverURL بالكامل مع فواصله)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          for i, l in enumerate(lines):
-              if "NEDNSOverHTTPSSettings" in l and "!" in l:
-                  lines[i] = l.replace("!", "")
+              content = f.read()
+          content = re.sub(r"serverURL\s*:\s*[^,\)]+\s*,?", "", content)
           with open(dns_path, "w", encoding="utf-8") as f:
-              f.writelines(lines)
-          print("تم إصلاح DNSController.swift بدقة الفهرس")
+              f.write(content)
+          print("تم إصلاح DNSController.swift بنجاح تام")
           '
 
       - name: Generate Project and Compile
