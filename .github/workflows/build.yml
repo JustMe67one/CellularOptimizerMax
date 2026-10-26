@@ -70,26 +70,78 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Precise Patching Script
+      - name: Overwrite & Sanitize DNSController & ProbeEngine
         run: |
           python3 -c '
-          import glob, re
-          for path in glob.glob("**/DNSController.swift", recursive=True):
-              with open(path, "r", encoding="utf-8") as f:
-                  content = f.read()
-              content = re.sub(r"(NEDNSOverHTTPSSettings\s*\([^\)]*\))\s*!", r"\1", content)
-              content = re.sub(r",\s*serverURL\s*:[^,\)]+", "", content)
-              content = re.sub(r"serverURL\s*:[^,\)]+\s*,?", "", content)
-              lines = content.splitlines()
-              new_lines = []
-              for l in lines:
-                  if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
-                      new_lines.append("// " + l + " // Neutralized\n")
-                  else:
-                      new_lines.append(l)
-              with open(path, "w", encoding="utf-8") as f:
-                  f.writelines(new_lines)
+          import glob
 
+          # 1. إعادة كتابة DNSController.swift بكود نظيف 100% وخالي من الأخطاء
+          dns_code = """import Foundation
+          import NetworkExtension
+
+          @MainActor
+          final class DNSController: ObservableObject {
+              @Published private(set) var active = false
+              @Published private(set) var message = "Managed DNS is off"
+              private let manager = NEDNSSettingsManager.shared()
+
+              func load() async {
+                  await withCheckedContinuation { continuation in
+                      manager.loadFromPreferences { [weak self] error in
+                          Task { @MainActor in
+                              if let error {
+                                  self?.message = error.localizedDescription
+                              } else {
+                                  self?.active = self?.manager.isEnabled ?? false
+                              }
+                              continuation.resume()
+                          }
+                      }
+                  }
+              }
+
+              func setCloudflare(_ enabled: Bool) async {
+                  await withCheckedContinuation { continuation in
+                      manager.loadFromPreferences { [weak self] error in
+                          guard let self else { continuation.resume(); return }
+                          if let error {
+                              Task { @MainActor in
+                                  self.message = error.localizedDescription
+                                  continuation.resume()
+                              }
+                              return
+                          }
+                          if enabled {
+                              let settings = NEDNSOverHTTPSSettings(servers: ["1.1.1.1", "1.0.0.1"])
+                              settings.matchDomains = [""]
+                              self.manager.localizedDescription = "Cellular Optimizer MAX"
+                              self.manager.dnsSettings = settings
+                          } else {
+                              self.manager.dnsSettings = nil
+                          }
+                          self.manager.saveToPreferences { error in
+                              Task { @MainActor in
+                                  if let error {
+                                      self.message = error.localizedDescription
+                                  } else {
+                                      self.active = enabled
+                                      self.message = enabled ? "Encrypted DNS active" : "Managed DNS is off"
+                                  }
+                                  continuation.resume()
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          """
+
+          for path in glob.glob("**/DNSController.swift", recursive=True):
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(dns_code)
+              print(f"Cleaned and overwritten {path}")
+
+          # 2. إصلاح ProbeEngine.swift
           for path in glob.glob("**/ProbeEngine.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
