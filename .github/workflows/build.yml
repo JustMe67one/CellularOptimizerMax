@@ -72,17 +72,20 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Ultimate Clean Comma & Argument Patcher
+      - name: Precise NEDNSOverHTTPSSettings Patching Script
         run: |
           python3 -c '
           import glob, re
 
-          # 1. تنظيف DNSController.swift وإزالة serverURL وتنظيف الفواصل المعلقة بدقة
+          # 1. إصلاح DNSController.swift وإزالة علامة التعجب من NEDNSOverHTTPSSettings وتنظيف السطور
           for path in glob.glob("**/DNSController.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
               
-              # إزالة وسيط serverURL بأمان من أي استدعاء
+              # إزالة الـ ! بعد تهيئة NEDNSOverHTTPSSettings لتجنب خطأ force unwrap
+              content = re.sub(r"(NEDNSOverHTTPSSettings\s*\([^\)]*\))\s*!", r"\1", content)
+              
+              # إزالة أي وسيط serverURL مع فواصله بشكل نظيف
               content = re.sub(r",\s*serverURL\s*:[^,\)]+", "", content)
               content = re.sub(r"serverURL\s*:[^,\)]+\s*,?", "", content)
               
