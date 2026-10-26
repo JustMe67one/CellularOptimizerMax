@@ -5,6 +5,11 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+# منع تكدس المهام وإلغاء أي بناء قديم معلق فور رفع تعديل جديد
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-ipa:
     name: Build & Package IPA
