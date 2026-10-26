@@ -72,29 +72,38 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Global Bulletproof Auto-Fix Script
+      - name: Precise Index Auto-Fix Script
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح ProbeEngine.swift (استبدال .values.last بشيء متوافق عالمياً)
+          # 1. إصلاح ProbeEngine.swift (السطر 51: تحويل القيمة المسندة إلى String)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              content = f.read()
-          content = content.replace(".values.last", ".values.map({$0}).last")
+              lines = f.readlines()
+          if len(lines) >= 51:
+              line = lines[50]
+              if "=" in line and "String(" not in line:
+                  parts = line.split("=", 1)
+                  lhs = parts[0]
+                  rhs = parts[1].strip()
+                  semi = ";" if rhs.endswith(";") else ""
+                  rhs = rhs.rstrip(";")
+                  lines[50] = f"{lhs} = String({rhs}){semi}\n"
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.write(content)
-          print("تم إصلاح ProbeEngine.swift بنجاح عالمي")
+              f.writelines(lines)
+          print("تم إصلاح ProbeEngine.swift بدقة الفهرس")
 
-          # 2. إصلاح DNSController.swift (إزالة الوسيط الزائد serverURL أينما وجد)
+          # 2. إصلاح DNSController.swift (إزالة أي علامة تعجب بعد NEDNSOverHTTPSSettings)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
-              content = f.read()
-          content = re.sub(r",\s*serverURL\s*:\s*[^,\)]+", "", content)
-          content = re.sub(r"serverURL\s*:\s*[^,\)]+,\s*", "", content)
+              lines = f.readlines()
+          for i, l in enumerate(lines):
+              if "NEDNSOverHTTPSSettings" in l and "!" in l:
+                  lines[i] = l.replace("!", "")
           with open(dns_path, "w", encoding="utf-8") as f:
-              f.write(content)
-          print("تم إصلاح DNSController.swift بنجاح عالمي")
+              f.writelines(lines)
+          print("تم إصلاح DNSController.swift بدقة الفهرس")
           '
 
       - name: Generate Project and Compile
