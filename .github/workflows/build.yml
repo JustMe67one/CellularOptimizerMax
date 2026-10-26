@@ -32,7 +32,7 @@ jobs:
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
-          <dict>
+          dict>
             <key>CFBundleExecutable</key>
             <string>CellularOptimizerMax</string>
             <key>CFBundleIdentifier</key>
@@ -72,47 +72,50 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Ultimate Definitive Patching Script
+      - name: Ultimate Glob-Based Patching Script
         run: |
           python3 -c '
-          import re
+          import glob, re
 
-          # 1. إصلاح ProbeEngine.swift (السطر 51 وتحويل النوع)
-          probe_path = "AppProject/Sources/ProbeEngine.swift"
-          with open(probe_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          if len(lines) >= 51:
-              line = lines[50]
-              if "=" in line and "String(" not in line:
-                  parts = line.split("=", 1)
-                  lhs = parts[0]
-                  rhs = parts[1].strip().rstrip(";")
-                  lines[50] = f"{lhs} = String({rhs})\n"
-          
-          content = "".join(lines)
-          content = content.replace(".values.last", ".values.map({$0}).last")
-          with open(probe_path, "w", encoding="utf-8") as f:
-              f.write(content)
-
-          # 2. إصلاح DNSController.swift (تعليق isEnabled وتنظيف الفواصل المعلقة)
-          dns_path = "AppProject/Sources/DNSController.swift"
-          with open(dns_path, "r", encoding="utf-8") as f:
-              dns_lines = f.readlines()
-          
-          new_dns = []
-          for l in dns_lines:
-              if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
-                  l = "// " + l + " // Commented out: isEnabled is get-only\n"
-              new_dns.append(l)
+          # 1. إصلاح شامل لملف DNSController.swift (تعليق أي سطر يحتوي على serverURL أو isEnabled)
+          for path in glob.glob("**/DNSController.swift", recursive=True):
+              with open(path, "r", encoding="utf-8") as f:
+                  lines = f.readlines()
               
-          dns_content = "".join(new_dns)
-          dns_content = re.sub(r",\s*,", ",", dns_content)
-          dns_content = re.sub(r"\(\s*,", "(", dns_content)
-          dns_content = re.sub(r",\s*\)", ")", dns_content)
-          
-          with open(dns_path, "w", encoding="utf-8") as f:
-              f.write(dns_content)
-          print("All final patches applied successfully.")
+              new_lines = []
+              for l in lines:
+                  if ("serverURL" in l or "isEnabled" in l) and not l.strip().startswith("//"):
+                      new_lines.append("// " + l + " // Neutralized by patcher\n")
+                  else:
+                      new_lines.append(l)
+                      
+              content = "".join(new_lines)
+              content = re.sub(r",\s*\)", ")", content)
+              content = re.sub(r"\(\s*,", "(", content)
+              
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print(f"Successfully sanitized {path}")
+
+          # 2. إصلاح شامل لملف ProbeEngine.swift
+          for path in glob.glob("**/ProbeEngine.swift", recursive=True):
+              with open(path, "r", encoding="utf-8") as f:
+                  content = f.read()
+              content = content.replace(".values.last", ".values.map({$0}).last")
+              
+              lines = content.splitlines()
+              if len(lines) >= 51:
+                  idx = 50
+                  if "=" in lines[idx] and "String(" not in lines[idx]:
+                      parts = lines[idx].split("=", 1)
+                      lhs = parts[0]
+                      rhs = parts[1].strip().rstrip(";")
+                      lines[idx] = f"{lhs} = String({rhs})"
+              content = "\n".join(lines)
+              
+              with open(path, "w", encoding="utf-8") as f:
+                  f.write(content)
+              print(f"Successfully sanitized {path}")
           '
 
       - name: Generate Project and Compile
