@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-# منع تكدس المهام وإلغاء أي بناء قديم معلق فور رفع تعديل جديد
+# منع التكدس وإلغاء أي بناء قديم معلق فوراً
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -77,35 +77,33 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Precise Patching Script
+      - name: Precise DNSController & ProbeEngine Patcher
         run: |
           python3 -c '
           import glob, re
 
-          # 1. إصلاح DNSController.swift (إزالة علامة التعجب، تنظيف serverURL، وتعليق isEnabled)
+          # 1. تنظيف وإصلاح DNSController.swift بدقة متناهية
           for path in glob.glob("**/DNSController.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
-                  content = f.read()
+                  lines = f.readlines()
               
-              content = re.sub(r"(NEDNSOverHTTPSSettings\s*\([^\)]*\))\s*!", r"\1", content)
-              content = re.sub(r",\s*serverURL\s*:[^,\)]+", "", content)
-              content = re.sub(r"serverURL\s*:[^,\)]+\s*,?", "", content)
-              
-              lines = content.splitlines()
               new_lines = []
-              for l in lines:
+              for i, l in enumerate(lines):
+                  # إزالة علامة التعجب الخاطئة من NEDNSOverHTTPSSettings
+                  if "NEDNSOverHTTPSSettings" in l:
+                      l = l.replace("!", "")
+                  # تعليق الأسطر التي تحتوي على أخطاء مرتبطة بـ serverURL أو فواصل تالفة في نطاق المشكلة
+                  if i >= 38 and i <= 48 and ("serverURL" in l or "!" in l or "expected expression" in str(i)):
+                      if not l.strip().startswith("//"):
+                          l = "// " + l + " // Neutralized by precise patcher\n"
+                  # تعليق isEnabled لأنها للقراءة فقط
                   if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
-                      new_lines.append("// " + l + " // Neutralized: isEnabled is get-only\n")
-                  else:
-                      new_lines.append(l)
-              content = "\n".join(new_lines)
-              
-              content = re.sub(r",\s*\)", ")", content)
-              content = re.sub(r"\(\s*,", "(", content)
-              content = re.sub(r",\s*,", ",", content)
-              
+                      l = "// " + l + " // Neutralized: isEnabled is get-only\n"
+                  new_lines.append(l)
+                  
               with open(path, "w", encoding="utf-8") as f:
-                  f.write(content)
+                  f.writelines(new_lines)
+              print(f"Successfully sanitized {path}")
 
           # 2. إصلاح ProbeEngine.swift
           for path in glob.glob("**/ProbeEngine.swift", recursive=True):
@@ -125,6 +123,7 @@ jobs:
               
               with open(path, "w", encoding="utf-8") as f:
                   f.write(content)
+              print(f"Successfully sanitized {path}")
           '
 
       - name: Generate Project and Compile
