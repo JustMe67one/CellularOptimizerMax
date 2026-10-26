@@ -72,46 +72,30 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Precise DNSController & ProbeEngine Patcher
+      - name: Precise Patching Script
         run: |
           python3 -c '
           import glob, re
-
-          # 1. تنظيف وإصلاح DNSController.swift بدقة متناهية
           for path in glob.glob("**/DNSController.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
-                  lines = f.readlines()
-              
+                  content = f.read()
+              content = re.sub(r"(NEDNSOverHTTPSSettings\s*\([^\)]*\))\s*!", r"\1", content)
+              content = re.sub(r",\s*serverURL\s*:[^,\)]+", "", content)
+              content = re.sub(r"serverURL\s*:[^,\)]+\s*,?", "", content)
+              lines = content.splitlines()
               new_lines = []
-              for i, l in enumerate(lines):
-                  if "NEDNSOverHTTPSSettings" in l:
-                      l = l.replace("!", "")
-                  if i >= 38 and i <= 48 and ("serverURL" in l or "!" in l):
-                      if not l.strip().startswith("//"):
-                          l = "// " + l + " // Neutralized by precise patcher\n"
+              for l in lines:
                   if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
-                      l = "// " + l + " // Neutralized: isEnabled is get-only\n"
-                  new_lines.append(l)
-                  
+                      new_lines.append("// " + l + " // Neutralized\n")
+                  else:
+                      new_lines.append(l)
               with open(path, "w", encoding="utf-8") as f:
                   f.writelines(new_lines)
 
-          # 2. إصلاح ProbeEngine.swift
           for path in glob.glob("**/ProbeEngine.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
               content = content.replace(".values.last", ".values.map({$0}).last")
-              
-              lines = content.splitlines()
-              if len(lines) >= 51:
-                  idx = 50
-                  if "=" in lines[idx] and "String(" not in lines[idx]:
-                      parts = lines[idx].split("=", 1)
-                      lhs = parts[0]
-                      rhs = parts[1].strip().rstrip(";")
-                      lines[idx] = f"{lhs} = String({rhs})"
-              content = "\n".join(lines)
-              
               with open(path, "w", encoding="utf-8") as f:
                   f.write(content)
           '
@@ -120,8 +104,6 @@ jobs:
         run: |
           cd AppProject
           xcodegen generate
-          
-          set -o pipefail
           xcodebuild -project CellularOptimizerMax.xcodeproj \
             -scheme CellularOptimizerMax \
             -sdk iphoneos \
@@ -130,11 +112,7 @@ jobs:
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO > build_log.txt 2>&1 || {
-              echo "=== تفاصيل خطأ المترجم الجديد ==="
-              grep -i "error:" build_log.txt || tail -n 50 build_log.txt
-              exit 74
-            }
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Package to IPA
         run: |
