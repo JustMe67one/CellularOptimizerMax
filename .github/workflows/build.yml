@@ -72,7 +72,7 @@ jobs:
 
       - name: Overwrite & Sanitize DNSController & ProbeEngine
         run: |
-          python3 -c '
+          python3 << 'EOF'
           import glob, re
 
           dns_code = """import Foundation
@@ -143,11 +143,10 @@ jobs:
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
               content = content.replace(".values.last", ".values.map({$0}).last")
-              # إصلاح مشكلة عدم توافق الأنواع في rawValue بتحويله إلى String
               content = re.sub(r'(\b[a-zA-Z0-9_]+\s*=\s*)(t\.domainResolutionProtocol\.rawValue)', r'\1String(\2)', content)
               with open(path, "w", encoding="utf-8") as f:
                   f.write(content)
-          '
+          EOF
 
       - name: Generate Project and Compile
         run: |
