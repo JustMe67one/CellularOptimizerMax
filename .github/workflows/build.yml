@@ -72,32 +72,47 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Bulletproof String-Based Patching Script
+      - name: Ultimate Definitive Patching Script
         run: |
           python3 -c '
-          # 1. إصلاح ProbeEngine.swift بطريقة نصية بحتة
+          import re
+
+          # 1. إصلاح ProbeEngine.swift (السطر 51 وتحويل النوع)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              content = f.read()
+              lines = f.readlines()
+          if len(lines) >= 51:
+              line = lines[50]
+              if "=" in line and "String(" not in line:
+                  parts = line.split("=", 1)
+                  lhs = parts[0]
+                  rhs = parts[1].strip().rstrip(";")
+                  lines[50] = f"{lhs} = String({rhs})\n"
+          
+          content = "".join(lines)
           content = content.replace(".values.last", ".values.map({$0}).last")
           with open(probe_path, "w", encoding="utf-8") as f:
               f.write(content)
-          print("ProbeEngine fixed via string replacement.")
 
-          # 2. إصلاح DNSController.swift بتعليق أي سطر يحتوي على serverURL تلقائياً
+          # 2. إصلاح DNSController.swift (تعليق isEnabled وتنظيف الفواصل المعلقة)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
+              dns_lines = f.readlines()
           
-          new_dns_lines = []
-          for l in lines:
-              if "serverURL" in l and not l.strip().startswith("//"):
-                  l = "// " + l + " // Commented out by patcher\n"
-              new_dns_lines.append(l)
+          new_dns = []
+          for l in dns_lines:
+              if "isEnabled" in l and "=" in l and not l.strip().startswith("//"):
+                  l = "// " + l + " // Commented out: isEnabled is get-only\n"
+              new_dns.append(l)
               
+          dns_content = "".join(new_dns)
+          dns_content = re.sub(r",\s*,", ",", dns_content)
+          dns_content = re.sub(r"\(\s*,", "(", dns_content)
+          dns_content = re.sub(r",\s*\)", ")", dns_content)
+          
           with open(dns_path, "w", encoding="utf-8") as f:
-              f.writelines(new_dns_lines)
-          print("DNSController fixed via line filtering.")
+              f.write(dns_content)
+          print("All final patches applied successfully.")
           '
 
       - name: Generate Project and Compile
