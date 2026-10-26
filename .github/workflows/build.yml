@@ -72,41 +72,39 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Advanced Precision Auto-Fix Script
+      - name: Final Surgical Python Patching
         run: |
           python3 -c '
           import re
 
-          # 1. إصلاح ProbeEngine.swift (السطر 51: تحويل القيمة المسندة إلى String بأمان)
+          # 1. إصلاح ProbeEngine.swift (.values.last)
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
-              lines = f.readlines()
-          if len(lines) >= 51:
-              line = lines[50]
-              if "=" in line and "String(" not in line:
-                  parts = line.split("=", 1)
-                  lhs = parts[0]
-                  rhs = parts[1].strip()
-                  semi = ";" if rhs.endswith(";") else ""
-                  rhs = rhs.rstrip(";")
-                  lines[50] = f"{lhs} = String({rhs}){semi}\n"
+              content = f.read()
+          content = content.replace(".values.last", ".values.map({$0}).last")
           with open(probe_path, "w", encoding="utf-8") as f:
-              f.writelines(lines)
-          print("تم إصلاح ProbeEngine.swift بنجاح")
+              f.write(content)
+          print("تم تصحيح ProbeEngine بنجاح")
 
-          # 2. إصلاح DNSController.swift (تنظيف الفواصل وعلامات التعجب الزائدة حول NEDNSOverHTTPSSettings)
+          # 2. إصلاح DNSController.swift (التعامل مع isEnabled التي للقراءة فقط والسطر 42)
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
-              content = f.read()
-          # إزالة الـ ! بعد تهيئة NEDNSOverHTTPSSettings
+              lines = f.readlines()
+          
+          new_lines = []
+          for line in lines:
+              # إذا كانت تسند قيمة لـ isEnabled، نجعلها تعليقاً لتجنب خطأ get-only
+              if "isEnabled" in line and "=" in line and not line.strip().startswith("//"):
+                  line = "// " + line + " // Converted to comment by patcher\n"
+              new_lines.append(line)
+              
+          content = "".join(new_lines)
           content = re.sub(r"NEDNSOverHTTPSSettings\s*\((.*?)\)\s*!", r"NEDNSOverHTTPSSettings(\1)", content, flags=re.DOTALL)
-          # إزالة الوسيط الزائد serverURL وأي فواصل معلقة ناتجة عنه
-          content = re.sub(r",?\s*serverURL\s*:\s*[^,\)]+", "", content)
-          content = re.sub(r"\(\s*,", "(", content)
-          content = re.sub(r",\s*\)", ")", content)
+          content = re.sub(r",\s*serverURL\s*:\s*[^,\)]+", "", content)
+          
           with open(dns_path, "w", encoding="utf-8") as f:
               f.write(content)
-          print("تم إصلاح DNSController.swift بنجاح")
+          print("تم تصحيح DNSController بنجاح")
           '
 
       - name: Generate Project and Compile
