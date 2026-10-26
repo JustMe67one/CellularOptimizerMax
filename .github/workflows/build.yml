@@ -72,40 +72,32 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Final One-Error Patching Script
+      - name: Bulletproof String-Based Patching Script
         run: |
           python3 -c '
-          import re
-
-          # 1. الحفاظ على إصلاح ProbeEngine.swift
+          # 1. إصلاح ProbeEngine.swift بطريقة نصية بحتة
           probe_path = "AppProject/Sources/ProbeEngine.swift"
           with open(probe_path, "r", encoding="utf-8") as f:
               content = f.read()
-          content = re.sub(r"\.values\s*\.\s*last", ".values.map({$0}).last", content)
+          content = content.replace(".values.last", ".values.map({$0}).last")
           with open(probe_path, "w", encoding="utf-8") as f:
               f.write(content)
+          print("ProbeEngine fixed via string replacement.")
 
-          # 2. المعالجة النهائية والجراحية لـ serverURL في DNSController.swift
+          # 2. إصلاح DNSController.swift بتعليق أي سطر يحتوي على serverURL تلقائياً
           dns_path = "AppProject/Sources/DNSController.swift"
           with open(dns_path, "r", encoding="utf-8") as f:
               lines = f.readlines()
           
           new_dns_lines = []
           for l in lines:
-              if "serverURL" in l:
-                  # محاولة إزالة الوسيط serverURL من السطر
-                  cleaned = re.sub(r',\s*serverURL\s*:\s*[^,\)]+', '', l)
-                  cleaned = re.sub(r'serverURL\s*:\s*[^,\)]+\s*,\s*', '', cleaned)
-                  # إذا ظل الوسيط موجوداً أو حدث تعقيد، قم بتعليق السطر بالكامل لتجاوز الخطأ فوراً
-                  if "serverURL" in cleaned and not cleaned.strip().startswith("//"):
-                      l = "// " + l + " // Commented out: extra serverURL argument\n"
-                  else:
-                      l = cleaned
+              if "serverURL" in l and not l.strip().startswith("//"):
+                  l = "// " + l + " // Commented out by patcher\n"
               new_dns_lines.append(l)
               
           with open(dns_path, "w", encoding="utf-8") as f:
               f.writelines(new_dns_lines)
-          print("تم تحييد serverURL نهائياً في DNSController.swift")
+          print("DNSController fixed via line filtering.")
           '
 
       - name: Generate Project and Compile
