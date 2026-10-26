@@ -8,7 +8,7 @@ on:
 jobs:
   build-ipa:
     name: Build & Package IPA
-    runs-on: macos-14
+    runs-on: macos-13
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -72,24 +72,20 @@ jobs:
                   CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Precise NEDNSOverHTTPSSettings Patching Script
+      - name: Precise Patching Script
         run: |
           python3 -c '
           import glob, re
 
-          # 1. إصلاح DNSController.swift وإزالة علامة التعجب من NEDNSOverHTTPSSettings وتنظيف السطور
+          # 1. إصلاح DNSController.swift (إزالة علامة التعجب، تنظيف serverURL، وتعليق isEnabled)
           for path in glob.glob("**/DNSController.swift", recursive=True):
               with open(path, "r", encoding="utf-8") as f:
                   content = f.read()
               
-              # إزالة الـ ! بعد تهيئة NEDNSOverHTTPSSettings لتجنب خطأ force unwrap
               content = re.sub(r"(NEDNSOverHTTPSSettings\s*\([^\)]*\))\s*!", r"\1", content)
-              
-              # إزالة أي وسيط serverURL مع فواصله بشكل نظيف
               content = re.sub(r",\s*serverURL\s*:[^,\)]+", "", content)
               content = re.sub(r"serverURL\s*:[^,\)]+\s*,?", "", content)
               
-              # تعليق isEnabled لأنها للقراءة فقط
               lines = content.splitlines()
               new_lines = []
               for l in lines:
@@ -99,14 +95,12 @@ jobs:
                       new_lines.append(l)
               content = "\n".join(new_lines)
               
-              # تنظيف نهائي للفواصل المعلقة والمزدوجة
               content = re.sub(r",\s*\)", ")", content)
               content = re.sub(r"\(\s*,", "(", content)
               content = re.sub(r",\s*,", ",", content)
               
               with open(path, "w", encoding="utf-8") as f:
                   f.write(content)
-              print(f"Successfully sanitized {path}")
 
           # 2. إصلاح ProbeEngine.swift
           for path in glob.glob("**/ProbeEngine.swift", recursive=True):
@@ -126,7 +120,6 @@ jobs:
               
               with open(path, "w", encoding="utf-8") as f:
                   f.write(content)
-              print(f"Successfully sanitized {path}")
           '
 
       - name: Generate Project and Compile
